@@ -11,18 +11,17 @@ from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from selenium.webdriver.firefox.service import Service as FirefoxService # Keep this import
+from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-# --- FIX: webdriver-manager is no longer needed and can be removed ---
-# from webdriver_manager.firefox import GeckoDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Fetch API configuration from environment variables
-CHATGPT_API_URL = os.getenv("CHATGPT_API_URL", "https://ai2gpt.oiio.nyc.mn/v1/chat/completions")
-CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY", "sk-cf-wasd2048")
+CHATGPT_API_URL = os.getenv("CHATGPT_API_URL", "https://ai2gpt.xxxx.nyc.mn/v1/chat/completions")
+CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY", "sk-cf-wxxx2x4x")
 
 
 def average_of_array(arr):
@@ -192,7 +191,187 @@ def ask_slide_to_chatgpt(base64_image):
         print(f"Error calling ChatGPT API for puzzle slider: {e}")
         return "90"
 
-# ... (All other test functions like puzzle_test, text_test, etc., remain unchanged) ...
+def puzzle_test(driver):
+    driver.get("https://2captcha.com/demo/geetest")
+    time.sleep(5)
+    button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CLASS_NAME, "geetest_radar_tip"))
+    )
+    button.click()
+    box = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "geetest_embed"))
+    )
+    time.sleep(1)
+    box.screenshot('geetest_box.png')
+    base64_string = encode_image_to_base64('geetest_box.png')
+    time.sleep(1)
+    all_results = []
+    while True:
+        slider = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "geetest_slider_button"))
+        )
+        time.sleep(2)
+        action = ActionChains(driver)
+        input_string = ask_slide_to_chatgpt(base64_string)
+        numbers = re.findall(r'\d+', input_string)
+        if numbers:
+            result = int(numbers[0])
+        else:
+            result = 0
+        if result < 110:
+            result = 90
+        all_results.append(result)
+        action.click_and_hold(slider).perform()
+        time.sleep(random.uniform(0.8, 1.2))
+        total_offset = average_of_array(all_results)
+        num_steps = 5
+        step_offset = total_offset / num_steps
+        for _ in range(num_steps):
+            action.move_by_offset(step_offset, 0).perform()
+            time.sleep(random.uniform(0.05, 0.1))
+        action.release().perform()
+
+def complicated_text_test(driver):
+    driver.get("https://2captcha.com/demo/mtcaptcha")
+    time.sleep(5)
+    iframe = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.ID, "mtcaptcha-iframe-1"))
+    )
+    iframe.screenshot('captcha_image.png')
+    base64_string = encode_image_to_base64('captcha_image.png')
+    response = ask_text_to_chatgpt(base64_string)
+
+    print(response)
+    driver.switch_to.frame(iframe)
+    input_field = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "mtcap-noborder.mtcap-inputtext.mtcap-inputtext-custom"))
+    )
+    input_field.send_keys(response)
+    time.sleep(2)
+    driver.switch_to.default_content()
+    submit_button = None
+    selectors = [
+        (By.XPATH, "//button[contains(@class, '_buttonPrimary_') or contains(text(), 'Submit') or contains(text(), 'Check')]"),
+        (By.CSS_SELECTOR, "button[class*='_buttonPrimary_']"),
+        (By.CSS_SELECTOR, "button[class*='_button_']"),
+        (By.TAG_NAME, "button")
+    ]
+    
+    for selector_type, selector_value in selectors:
+        try:
+            submit_button = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((selector_type, selector_value))
+            )
+            break
+        except:
+            continue
+    
+    if not submit_button:
+        print("Could not find submit button, trying to find any clickable button...")
+        buttons = driver.find_elements(By.TAG_NAME, "button")
+        if buttons:
+            submit_button = buttons[-1]
+    submit_button.click()
+
+def text_test(driver):
+    driver.get("https://2captcha.com/demo/normal")
+    time.sleep(5)
+    captcha_image = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "_captchaImage_rrn3u_9"))
+    )
+
+    time.sleep(2)
+    captcha_image.screenshot('captcha_image.png')
+    base64_string = encode_image_to_base64('captcha_image.png')
+    response = ask_text_to_chatgpt(base64_string)
+
+    print(response)
+
+    input_field = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "_inputInner_ws73z_12"))
+    )
+    input_field.send_keys(response)
+    submit_button = None
+    selectors = [
+        (By.XPATH, "//button[contains(@class, '_buttonPrimary_') or contains(text(), 'Submit') or contains(text(), 'Check')]"),
+        (By.CSS_SELECTOR, "button[class*='_buttonPrimary_']"),
+        (By.CSS_SELECTOR, "button[class*='_button_']"),
+        (By.TAG_NAME, "button")
+    ]
+    
+    for selector_type, selector_value in selectors:
+        try:
+            submit_button = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((selector_type, selector_value))
+            )
+            break
+        except:
+            continue
+    
+    if not submit_button:
+        print("Could not find submit button, trying to find any clickable button...")
+        buttons = driver.find_elements(By.TAG_NAME, "button")
+        if buttons:
+            submit_button = buttons[-1]
+    
+    if submit_button:
+        submit_button.click()
+    else:
+        print("No submit button found!")
+    time.sleep(5)
+    driver.quit()
+
+def twocaptcha_text_test(driver):
+    driver.get("https://2captcha.com/demo/text")
+    time.sleep(5)
+    
+    try:
+        question_selectors = [
+            (By.CSS_SELECTOR, ".captcha-question"),
+            (By.CSS_SELECTOR, "[class*='question']"),
+            (By.XPATH, "//*[contains(text(), '?')]"),
+        ]
+        
+        question_element = None
+        question_text = ""
+        
+        for selector_type, selector_value in question_selectors:
+            try:
+                question_element = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((selector_type, selector_value))
+                )
+                question_text = question_element.text.strip()
+                if question_text and '?' in question_text:
+                    print(f"Found question: {question_text}")
+                    break
+            except:
+                continue
+        
+        if not question_text:
+            print("Could not find captcha question text")
+            return
+        
+        answer = ask_2captcha_text_question(question_text)
+        print(f"AI Answer: {answer}")
+        
+        input_field = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='text']"))
+        )
+        input_field.clear()
+        input_field.send_keys(answer)
+        
+        submit_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))
+        )
+        submit_button.click()
+        print("Submitted answer")
+        time.sleep(5)
+            
+    except Exception as e:
+        print(f"Error during 2captcha text test: {str(e)}")
+    
+    time.sleep(3)
+
 def recaptcha_test(driver):
     driver.get("https://www.google.com/recaptcha/api/fallback?k=6LdjOBMTAAAAAFmv8eSu7I8_qw5qaF0o6sGrqXbA")
     print("Navigated to reCAPTCHA fallback page.")
@@ -207,7 +386,6 @@ def recaptcha_test(driver):
 
         try:
             response_elements = driver.find_elements(By.ID, "g-recaptcha-response")
-            # A solved CAPTCHA has a non-empty value in the response textarea
             if response_elements and response_elements[0].get_attribute("value"):
                 print("CAPTCHA appears to be solved. A response token is present.")
                 break
@@ -272,8 +450,51 @@ def recaptcha_test(driver):
     print("Taking final screenshot as 'final_result.png'")
     driver.save_screenshot('final_result.png')
 
+def botdetect_demo_test(driver):
+    print("Starting BotDetect CAPTCHA demo bypass test...")
+    driver.get("https://captcha.com/demos/features/captcha-demo.aspx")
+    time.sleep(5)
+    
+    try:
+        driver.save_screenshot('botdetect_full_page.png')
+        print("Full page screenshot saved")
+        
+        captcha_img = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "BotDetectCaptcha_CaptchaImage"))
+        )
+        print(f"Found captcha image")
+        
+        filename = 'botdetect_captcha.png'
+        captcha_img.screenshot(filename)
+        print(f"Captcha screenshot saved")
+        
+        base64_string = encode_image_to_base64(filename)
+        answer = ask_text_to_chatgpt(base64_string)
+        print(f"Captcha solution: {answer}")
+        
+        captcha_input = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "BotDetectCaptcha_CaptchaCode"))
+        )
+        captcha_input.clear()
+        captcha_input.send_keys(answer)
+        print(f"Entered captcha solution")
+        
+        validate_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, "ValidateCaptchaButton"))
+        )
+        validate_button.click()
+        print("Clicked validate button")
+        time.sleep(5)
+        
+        driver.save_screenshot('botdetect_result.png')
+        print("Result screenshot saved")
+            
+    except Exception as e:
+        print(f"Error during BotDetect test: {str(e)}")
+        driver.save_screenshot('botdetect_error.png')
+
 def main():
-    parser = argparse.ArgumentParser(description="Advanced captcha bypass tool.")
+    parser = argparse.ArgumentParser(description="Advanced captcha bypass tool for text captchas and BotDetect systems.")
     parser.add_argument('captcha_type', choices=['puzzle', 'text', 'complicated_text', 'recaptcha', 'botdetect_demo', 'twocaptcha_text'],
                         help="Specify the type of captcha to test")
     args = parser.parse_args()
@@ -281,58 +502,31 @@ def main():
     options = FirefoxOptions()
     options.add_argument("--headless")
     options.add_argument("--window-size=1920,1080")
+    
+    # --- FIX: Add arguments for stability in CI/CD environments ---
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     
-    # --- FIX: Initialize Service() without webdriver-manager. ---
-    # Selenium will now find the geckodriver installed by the setup-firefox action in the PATH.
-    service = FirefoxService()
+    service = FirefoxService(GeckoDriverManager().install())
     driver = webdriver.Firefox(service=service, options=options)
     
     try:
-        # ... (rest of the main function is unchanged)
-        if args.captcha_type == 'recaptcha':
+        if args.captcha_type == 'puzzle':
+            puzzle_test(driver)
+        elif args.captcha_type == 'text':
+            text_test(driver)
+        elif args.captcha_type == 'complicated_text':
+            complicated_text_test(driver)
+        elif args.captcha_type == 'recaptcha':
             recaptcha_test(driver)
-        # ...
+        elif args.captcha_type == 'botdetect_demo':
+            botdetect_demo_test(driver)
+        elif args.captcha_type == 'twocaptcha_text':
+            twocaptcha_text_test(driver)
     finally:
         print("Closing the browser.")
         driver.quit()
 
 if __name__ == "__main__":
-    # Simplified main function body for clarity
-    parser = argparse.ArgumentParser(description="Advanced captcha bypass tool.")
-    parser.add_argument('captcha_type', choices=['puzzle', 'text', 'complicated_text', 'recaptcha', 'botdetect_demo', 'twocaptcha_text'],
-                        help="Specify the type of captcha to test")
-    args = parser.parse_args()
-
-    options = FirefoxOptions()
-    options.add_argument("--headless")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    
-    service = FirefoxService()
-    driver = None # Initialize driver to None
-    try:
-        print("Initializing Firefox WebDriver...")
-        driver = webdriver.Firefox(service=service, options=options)
-        print("WebDriver initialized successfully.")
-        
-        if args.captcha_type == 'recaptcha':
-            recaptcha_test(driver)
-        # Add other captcha types back if needed
-        # elif args.captcha_type == 'text':
-        #     text_test(driver)
-        
-    except Exception as e:
-        print(f"An error occurred in main execution: {e}")
-        # Take a screenshot if the driver was initialized before the error
-        if driver:
-            driver.save_screenshot('main_error.png')
-            
-    finally:
-        if driver:
-            print("Closing the browser.")
-            driver.quit()
+    main()
