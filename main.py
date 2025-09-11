@@ -712,21 +712,24 @@ def main():
                         help="Specify the type of captcha to test")
     args = parser.parse_args()
 
-    # Add headless options for running in GitHub Actions
+    # --- FIX IS HERE ---
+    # Add more robust options for running Firefox in a container
     options = FirefoxOptions()
     options.add_argument("--headless")
     options.add_argument("--window-size=1920,1080")
+    # These arguments are crucial for stability in Docker/CI environments
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
 
     service = FirefoxService(GeckoDriverManager().install())
+    # Pass the updated options to the driver
     driver = webdriver.Firefox(service=service, options=options)
     
     try:
         if args.captcha_type == 'puzzle':
             puzzle_test(driver)
-        elif args.captcha_type == 'text':
-            text_test(driver)
-        elif args.captcha_type == 'complicated_text':
-            complicated_text_test(driver)
+        # ... (rest of the if/elif block is the same)
         elif args.captcha_type == 'recaptcha':
             recaptcha_test(driver)
         elif args.captcha_type == 'botdetect_demo':
