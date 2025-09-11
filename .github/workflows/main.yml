@@ -1,3 +1,5 @@
+# .github/workflows/main.yml
+
 name: Solve reCAPTCHA and Upload Result
 
 on:
@@ -26,9 +28,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # MODIFICATION HERE
       - name: Run CAPTCHA solver script
         env:
-          # MODIFIED: Use the new secret name for the custom ChatGPT API key
+          # Use the CHATGPT_API_KEY you stored in GitHub secrets
           CHATGPT_API_KEY: ${{ secrets.CHATGPT_API_KEY }}
         run: python main.py recaptcha
 
@@ -36,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: captcha-result-screenshot
-          path: final_result.png```
+          path: final_result.png
