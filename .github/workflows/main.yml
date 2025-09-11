@@ -3,46 +3,51 @@
 name: Solve reCAPTCHA and Upload Result
 
 on:
+  # This allows you to run the workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
   solve-captcha:
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Sets up a Python environment for use in actions
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # --- FIX: Use a dedicated action to install a stable version of Firefox and geckodriver ---
-      - name: Setup Firefox
-        uses: mozillareality/setup-firefox@v4
-        with:
-          # Using a specific 'latest' version is more stable than a floating version
-          firefox-version: '124.0.2'
+      # 3. Install system dependencies needed for Selenium and Firefox
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y firefox
 
-      # We no longer need the 'apt-get install' step, so it has been removed.
-
+      # 4. Install the Python packages listed in your requirements.txt file
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          # Ensure webdriver-manager is still in requirements.txt if other scripts need it,
-          # but our main script no longer relies on it for this workflow.
           pip install -r requirements.txt
 
+      # 5. Run the main Python script to solve the captcha
       - name: Run CAPTCHA solver script
         env:
+          # Use the API key you stored in GitHub secrets
           CHATGPT_API_KEY: ${{ secrets.CHATGPT_API_KEY }}
-          # We no longer need GH_TOKEN because webdriver-manager is not being used to hit the GitHub API
+          # Provide the GitHub token to avoid API rate limiting when downloading the webdriver
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python main.py recaptcha
 
+      # 6. Upload the final screenshot as an artifact
       - name: Upload final screenshot
         uses: actions/upload-artifact@v4
         with:
+          # Name of the artifact to be uploaded
           name: captcha-result-screenshot
-          # Upload all generated png files for better debugging
-          path: '*.png'
+          # Path to the file to upload
+          path: final_result.png
