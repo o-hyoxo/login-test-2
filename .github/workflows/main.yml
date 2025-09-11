@@ -1,5 +1,3 @@
-# .github/workflows/main.yml
-
 name: Solve reCAPTCHA and Upload Result
 
 on:
@@ -18,10 +16,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y firefox
+      # --- FIX IS HERE ---
+      # Use a dedicated action to install a stable version of Firefox
+      - name: Install Firefox
+        uses: moz-actions/setup-firefox@v4
+        with:
+          # You can specify a version or use 'latest'
+          firefox-version: 'latest'
 
       - name: Install Python dependencies
         run: |
@@ -30,10 +31,7 @@ jobs:
 
       - name: Run CAPTCHA solver script
         env:
-          # Use the API key you stored in GitHub secrets
           CHATGPT_API_KEY: ${{ secrets.CHATGPT_API_KEY }}
-          # --- FIX IS HERE ---
-          # Provide the GitHub token to avoid API rate limiting when downloading the webdriver
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python main.py recaptcha
 
