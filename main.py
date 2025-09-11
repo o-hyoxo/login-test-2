@@ -21,8 +21,8 @@ from selenium.webdriver.support import expected_conditions as EC
 load_dotenv()
 
 # Fetch API configuration from environment variables
-CHATGPT_API_URL = os.getenv("CHATGPT_API_URL", "https://ai2gpt.xxxx.nyc.mn/v1/chat/completions")
-CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY", "sk-cf-wxxx2x4x")
+CHATGPT_API_URL = os.getenv("CHATGPT_API_URL", "https://ai2gpt.oiio.nyc.mn/v1/chat/completions")
+CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY", "sk-cf-wasd2048")
 
 
 def average_of_array(arr):
