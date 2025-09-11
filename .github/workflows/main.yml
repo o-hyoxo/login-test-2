@@ -28,11 +28,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # MODIFICATION HERE
       - name: Run CAPTCHA solver script
         env:
-          # Use the CHATGPT_API_KEY you stored in GitHub secrets
+          # Use the API key you stored in GitHub secrets
           CHATGPT_API_KEY: ${{ secrets.CHATGPT_API_KEY }}
+          # --- FIX IS HERE ---
+          # Provide the GitHub token to avoid API rate limiting when downloading the webdriver
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python main.py recaptcha
 
       - name: Upload final screenshot
