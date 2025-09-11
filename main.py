@@ -23,7 +23,7 @@ load_dotenv()
 
 # --- NEW: Configuration for Custom ChatGPT API ---
 # The API endpoint you provided
-CHATGPT_API_URL = "https://ai2gpt.xxxx.nyc.mn/v1/chat/completions"
+CHATGPT_API_URL = "https://ai2gpt.oiio.nyc.mn/v1/chat/completions"
 # The API key you provided. For better practice, set this as CHATGPT_API_KEY in your .env file or GitHub Secrets.
 CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY", "sk-cf-wxxx2x4x")
 
