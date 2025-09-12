@@ -14,25 +14,21 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.firefox import GeckoDriverManager
 from selenium.webdriver.firefox.options import Options
+import json
 import google.generativeai as genai
 from PIL import Image
 import io
 
 # New API Configuration for custom endpoint and key
-API_URL = "new.281182.xyz"
+API_URL = "https://new.281182.xyz/v1beta/models/gemini-2.5-pro:generateContent"
 API_KEY = "sk-jFRMWzq8RG9im8FXZah4cIn5bMaC8noWLEythpLaMLP09t3E"
 
+# The genai library is kept for other functions, but the failing one will use requests
 try:
-    # Attempt to configure with a custom endpoint. This might require a specific library version.
-    genai.configure(
-        api_key=API_KEY,
-        client_options={"api_endpoint": API_URL}
-    )
-    print("Successfully configured AI with custom endpoint.")
-except TypeError:
-    # Fallback for older library versions that don't support client_options
-    print("Warning: Could not set custom API endpoint via client_options. Using default Google endpoint with the provided key.")
     genai.configure(api_key=API_KEY)
+    print("Successfully configured AI with standard endpoint for fallback functions.")
+except Exception as e:
+    print(f"Could not configure genai: {e}")
 
 def average_of_array(arr):
     if not arr:
@@ -47,49 +43,65 @@ def encode_image_to_base64(image_path):
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 def ask_recaptcha_to_chatgpt(base64_image):
-    """Asks the AI model to solve a reCAPTCHA image challenge."""
-    model = genai.GenerativeModel('gemini-2.5-pro')
-    
-    image_data = base64.b64decode(base64_image)
-    image = Image.open(io.BytesIO(image_data))
+    """Asks the AI model to solve a reCAPTCHA image challenge using a direct HTTP request."""
+    headers = {
+        "Content-Type": "application/json",
+    }
     
     prompt = """You are an expert reCAPTCHA solver with advanced computer vision capabilities. 
-
 Analyze this reCAPTCHA challenge image carefully:
+1. READ THE INSTRUCTION: Look at the top of the image for the challenge instruction.
+2. UNDERSTAND THE GRID: The image contains a grid of squares (3x3 or 4x4).
+3. IDENTIFY OBJECTS: Carefully examine each square for the requested object.
+4. OUTPUT FORMAT: Return ONLY the numbers of squares containing the object, separated by hyphens. Example: "1-3-5".
+Now analyze the image and provide the square numbers."""
 
-1. READ THE INSTRUCTION: Look at the top of the image for the challenge instruction (e.g., "Select all squares with cars", "Click on all images with traffic lights", etc.)
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inline_data": {
+                            "mime_type": "image/png",
+                            "data": base64_image
+                        }
+                    }
+                ]
+            }
+        ]
+    }
 
-2. UNDERSTAND THE GRID: The image contains a grid of squares (usually 3x3=9 squares or 4x4=16 squares)
-   - For 3x3 grid: squares are numbered 0-8 (top-left to bottom-right, row by row)
-   - For 4x4 grid: squares are numbered 0-15 (top-left to bottom-right, row by row)
-
-3. IDENTIFY OBJECTS: Carefully examine each square and identify if it contains the requested object.
-
-4. OUTPUT FORMAT: Return ONLY the numbers of squares containing the requested object, separated by hyphens.
-   Examples: "1-3-5" or "0-2-7-8-12" or "4"
-   
-5. BE PRECISE: Double-check your answer. Accuracy is critical.
-
-Now analyze the image and provide the square numbers that contain the requested object."""
-    
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            response = model.generate_content([prompt, image])
-            result = response.text.strip()
+            response = requests.post(f"{API_URL}?key={API_KEY}", headers=headers, json=payload, timeout=60)
             
-            numbers_only = re.findall(r'\d+', result)
-            if numbers_only:
-                return '-'.join(numbers_only)
-            else:
-                return result
+            if response.status_code == 200:
+                response_json = response.json()
+                result = response_json['candidates'][0]['content']['parts'][0]['text'].strip()
                 
+                numbers_only = re.findall(r'\d+', result)
+                if numbers_only:
+                    return '-'.join(numbers_only)
+                else:
+                    # If no numbers found, return the raw text in case it's an error message or something else
+                    return result
+            else:
+                print(f"Attempt {attempt + 1} failed with status {response.status_code}: {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt + 1} failed with network error: {e}")
+        except (KeyError, IndexError) as e:
+            print(f"Attempt {attempt + 1} failed parsing response: {e} - Response: {response.text}")
         except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            if attempt == max_retries - 1:
-                print("All attempts failed, returning empty result")
-                return "0"
+            print(f"An unexpected error occurred on attempt {attempt + 1}: {e}")
+
+        if attempt < max_retries - 1:
             time.sleep(2)
+
+    print("All attempts failed, returning empty result")
+    return "0"
 
 def ask_text_to_chatgpt(base64_image):
     """Asks the AI model to extract text from a simple captcha image."""
