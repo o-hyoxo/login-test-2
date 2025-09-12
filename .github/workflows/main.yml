@@ -22,7 +22,7 @@ jobs:
       run: |
         python main.py recaptcha --url "https://www.google.com/recaptcha/api/fallback?k=6LdjOBMTAAAAAFmv8eSu7I8_qw5qaF0o6sGrqXbA"
     - name: Upload screenshot
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: recaptcha-screenshot
         path: recaptcha_solved.png
