@@ -249,22 +249,23 @@ def renew_server(driver):
         print("Clicked 'Renew server' button.")
         
         print("Waiting for reCAPTCHA...")
-        # The function now returns True/False, but we don't need to check it.
-        # We will simply try to click the final button regardless.
-        handle_recaptcha(driver)
+        recaptcha_solved = handle_recaptcha(driver)
         
-        print("Attempting to click final 'Renew' button...")
-        # Use JavaScript to click the button, which can sometimes bypass visibility issues.
-        final_renew_button = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'swal2-confirm')]"))
-        )
-        driver.execute_script("arguments[0].click();", final_renew_button)
-        print("Clicked final 'Renew' button via JavaScript.")
-        
-        time.sleep(5) # Wait to observe the result
-        print("Renewal process appears to be complete.")
-        driver.save_screenshot('renewal_success.png')
-        print("Saved screenshot to 'renewal_success.png'")
+        if recaptcha_solved:
+            print("reCAPTCHA passed. Attempting to click final 'Renew' button...")
+            final_renew_button = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'swal2-confirm')]"))
+            )
+            driver.execute_script("arguments[0].click();", final_renew_button)
+            print("Clicked final 'Renew' button.")
+            
+            time.sleep(5) # Wait to observe the result
+            print("Renewal process appears to be complete.")
+            driver.save_screenshot('renewal_success.png')
+            print("Saved screenshot to 'renewal_success.png'")
+        else:
+            # If reCAPTCHA failed, raise an exception to fail the whole process.
+            raise Exception("Failed to solve reCAPTCHA after multiple attempts.")
 
     except Exception as e:
         print(f"An error occurred during the renewal process: {e}")
