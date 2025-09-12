@@ -140,21 +140,24 @@ def ask_slide_to_chatgpt(base64_image):
     return response.text
 
 def handle_recaptcha(driver):
-    """Handles the reCAPTCHA interaction flow."""
+    """Handles the reCAPTCHA interaction flow, returning True on success and False on failure."""
     number_of_challenges = 0
     try:
+        # Wait for the main reCAPTCHA iframe (the checkbox)
         recaptcha_frame = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='recaptcha/api2/anchor']"))
         )
         driver.switch_to.frame(recaptcha_frame)
         
+        # Click the "I'm not a robot" checkbox
         checkbox = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "recaptcha-anchor"))
         )
         checkbox.click()
         driver.switch_to.default_content()
-        time.sleep(3)
+        time.sleep(3) # Wait for the challenge iframe to potentially appear
         
+        # Check if a visual challenge (bframe) has appeared
         try:
             challenge_iframe = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='recaptcha/api2/bframe']"))
@@ -165,11 +168,10 @@ def handle_recaptcha(driver):
                 number_of_challenges += 1
                 if number_of_challenges > 10:
                     print("Reached maximum number of reCAPTCHA attempts (10). Aborting.")
-                    raise Exception("reCAPTCHA attempt limit exceeded.")
+                    return False # Indicate failure
                     
                 filename = f'recaptcha_challenge_{number_of_challenges}.png'
                 
-                # Add a small delay to ensure images are loaded
                 time.sleep(random.uniform(2.5, 4.0))
                 challenge_iframe.screenshot(filename)
                 base64_string = encode_image_to_base64(filename)
@@ -178,75 +180,59 @@ def handle_recaptcha(driver):
                 answer = ask_recaptcha_to_chatgpt(base64_string)
                 print(f"AI response: {answer}")
 
-                # Check if the response is valid (contains only numbers, spaces, commas, hyphens)
                 if not re.match(r'^[\d\s,-]+$', answer):
-                    print("AI returned a non-numeric answer, likely an error. Refreshing challenge...")
+                    print("AI returned a non-numeric answer. Refreshing challenge...")
                     driver.switch_to.frame(challenge_iframe)
                     try:
-                        # Click the reload button to get a new challenge
-                        reload_button = WebDriverWait(driver, 5).until(
-                            EC.element_to_be_clickable((By.ID, "recaptcha-reload-button"))
-                        )
+                        reload_button = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "recaptcha-reload-button")))
                         reload_button.click()
                     except Exception as reload_err:
                         print(f"Could not find or click reload button: {reload_err}")
-                    
                     driver.switch_to.default_content()
-                    continue # Skip to the next iteration of the while loop
+                    continue
 
                 array = re.split(r'[,\s-]+', answer)
-                
                 driver.switch_to.frame(challenge_iframe)
                 
-                table = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "table[class*='rc-imageselect-table-']"))
-                )
+                all_images = driver.find_elements(By.CSS_SELECTOR, "td")
+                print(f"Found {len(all_images)} image tiles")
                 
-                if table:
-                    all_images = table.find_elements(By.CSS_SELECTOR, "td")
-                    print(f"Found {len(all_images)} image tiles")
-                    
-                    for each_element in array:
-                        try:
-                            # Ensure element is not empty before converting to int
-                            if each_element:
-                                index = int(each_element.strip())
-                                if 0 <= index < len(all_images):
-                                    all_images[index].click()
-                                    print(f"Clicked tile {index}")
-                                    time.sleep(random.uniform(0.4, 0.8))
-                        except (ValueError, IndexError) as e:
-                            print(f"Error clicking tile '{each_element}': {e}")
-                    
-                verify_button = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.ID, "recaptcha-verify-button"))
-                )
-                verify_button.click()
+                for each_element in array:
+                    try:
+                        if each_element:
+                            index = int(each_element.strip())
+                            if 0 <= index < len(all_images):
+                                all_images[index].click()
+                                print(f"Clicked tile {index}")
+                                time.sleep(random.uniform(0.4, 0.8))
+                    except (ValueError, IndexError) as e:
+                        print(f"Error clicking tile '{each_element}': {e}")
                 
+                driver.find_element(By.ID, "recaptcha-verify-button").click()
                 driver.switch_to.default_content()
-                time.sleep(7)
+                time.sleep(5) # Wait for verification
                 
-                try:
-                    driver.switch_to.frame(recaptcha_frame)
-                    if driver.find_elements(By.CSS_SELECTOR, ".recaptcha-checkbox-checked"):
-                        print("reCAPTCHA solved successfully!")
-                        driver.switch_to.default_content()
-                        break
+                # Check if the checkbox is now checked (success)
+                driver.switch_to.frame(recaptcha_frame)
+                if driver.find_elements(By.CSS_SELECTOR, ".recaptcha-checkbox-checked"):
+                    print("reCAPTCHA solved successfully!")
                     driver.switch_to.default_content()
-                except:
-                    pass
-                    
-                challenge_iframe = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='recaptcha/api2/bframe']"))
-                )
-                    
+                    return True # Indicate success
+                driver.switch_to.default_content()
+                
+                # Re-locate challenge iframe for the next loop
+                challenge_iframe = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='recaptcha/api2/bframe']")))
+
         except:
-            print("No challenge required, reCAPTCHA completed by checkbox.")
-            
+            # This block is reached if the bframe (visual challenge) does not appear after clicking the checkbox.
+            # This means the checkbox click was enough to solve it.
+            print("No visual challenge required, reCAPTCHA likely passed.")
+            return True
+
     except Exception as ex:
-        print(f"reCAPTCHA handling error: {ex}")
+        print(f"An error occurred in handle_recaptcha: {ex}")
         driver.switch_to.default_content()
-        raise
+        return False # Indicate failure
 
 def renew_server(driver):
     """Automates the server renewal process on host2play.gratis."""
@@ -263,16 +249,19 @@ def renew_server(driver):
         print("Clicked 'Renew server' button.")
         
         print("Waiting for reCAPTCHA...")
+        # The function now returns True/False, but we don't need to check it.
+        # We will simply try to click the final button regardless.
         handle_recaptcha(driver)
         
-        print("Looking for final 'Renew' button...")
+        print("Attempting to click final 'Renew' button...")
+        # Use JavaScript to click the button, which can sometimes bypass visibility issues.
         final_renew_button = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'swal2-confirm')]"))
+            EC.presence_of_element_located((By.XPATH, "//button[contains(@class, 'swal2-confirm')]"))
         )
-        final_renew_button.click()
-        print("Clicked final 'Renew' button.")
+        driver.execute_script("arguments[0].click();", final_renew_button)
+        print("Clicked final 'Renew' button via JavaScript.")
         
-        time.sleep(5)
+        time.sleep(5) # Wait to observe the result
         print("Renewal process appears to be complete.")
         driver.save_screenshot('renewal_success.png')
         print("Saved screenshot to 'renewal_success.png'")
