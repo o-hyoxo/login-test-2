@@ -28,7 +28,7 @@ jobs:
 
     - name: Upload success screenshot
       if: success()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: renewal-screenshot
         path: renewal_success.png
@@ -36,7 +36,7 @@ jobs:
 
     - name: Upload error screenshot
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: renewal-screenshot
         path: renewal_error.png
