@@ -162,88 +162,83 @@ def handle_recaptcha(driver):
             print("Challenge detected, processing...")
             
             while True:
-                try:
-                    number_of_challenges += 1
-                    if number_of_challenges > 10:
-                        print("Reached maximum number of reCAPTCHA attempts (10). Aborting.")
-                        raise Exception("reCAPTCHA attempt limit exceeded.")
-                        
-                    filename = f'recaptcha_challenge_{number_of_challenges}.png'
+                number_of_challenges += 1
+                if number_of_challenges > 10:
+                    print("Reached maximum number of reCAPTCHA attempts (10). Aborting.")
+                    raise Exception("reCAPTCHA attempt limit exceeded.")
                     
-                    # Add a small delay to ensure images are loaded
-                    time.sleep(random.uniform(2.5, 4.0))
-                    challenge_iframe.screenshot(filename)
-                    base64_string = encode_image_to_base64(filename)
-                    
-                    print(f"Processing challenge {number_of_challenges}...")
-                    answer = ask_recaptcha_to_chatgpt(base64_string)
-                    print(f"AI response: {answer}")
+                filename = f'recaptcha_challenge_{number_of_challenges}.png'
+                
+                # Add a small delay to ensure images are loaded
+                time.sleep(random.uniform(2.5, 4.0))
+                challenge_iframe.screenshot(filename)
+                base64_string = encode_image_to_base64(filename)
+                
+                print(f"Processing challenge {number_of_challenges}...")
+                answer = ask_recaptcha_to_chatgpt(base64_string)
+                print(f"AI response: {answer}")
 
-                    # Check if the response is valid (contains only numbers, spaces, commas, hyphens)
-                    if not re.match(r'^[\d\s,-]+$', answer):
-                        print("AI returned a non-numeric answer, likely an error. Refreshing challenge...")
-                        driver.switch_to.frame(challenge_iframe)
-                        try:
-                            # Click the reload button to get a new challenge
-                            reload_button = WebDriverWait(driver, 5).until(
-                                EC.element_to_be_clickable((By.ID, "recaptcha-reload-button"))
-                            )
-                            reload_button.click()
-                        except Exception as reload_err:
-                            print(f"Could not find or click reload button: {reload_err}")
-                        
-                        driver.switch_to.default_content()
-                        continue # Skip to the next iteration of the while loop
-
-                    array = re.split(r'[,\s-]+', answer)
-                    
+                # Check if the response is valid (contains only numbers, spaces, commas, hyphens)
+                if not re.match(r'^[\d\s,-]+$', answer):
+                    print("AI returned a non-numeric answer, likely an error. Refreshing challenge...")
                     driver.switch_to.frame(challenge_iframe)
-                    
-                    table = WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "table[class*='rc-imageselect-table-']"))
-                    )
-                    
-                    if table:
-                        all_images = table.find_elements(By.CSS_SELECTOR, "td")
-                        print(f"Found {len(all_images)} image tiles")
-                        
-                        for each_element in array:
-                            try:
-                                # Ensure element is not empty before converting to int
-                                if each_element:
-                                    index = int(each_element.strip())
-                                    if 0 <= index < len(all_images):
-                                        all_images[index].click()
-                                        print(f"Clicked tile {index}")
-                                        time.sleep(random.uniform(0.4, 0.8))
-                            except (ValueError, IndexError) as e:
-                                print(f"Error clicking tile '{each_element}': {e}")
-                        
-                    verify_button = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.ID, "recaptcha-verify-button"))
-                    )
-                    verify_button.click()
-                    
-                    driver.switch_to.default_content()
-                    time.sleep(7)
-                    
                     try:
-                        driver.switch_to.frame(recaptcha_frame)
-                        if driver.find_elements(By.CSS_SELECTOR, ".recaptcha-checkbox-checked"):
-                            print("reCAPTCHA solved successfully!")
-                            driver.switch_to.default_content()
-                            break
-                        driver.switch_to.default_content()
-                    except:
-                        pass
-                        
-                    challenge_iframe = WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='recaptcha/api2/bframe']"))
-                    )
-                except Exception as ex:
-                    print(f"Challenge loop error: {ex}")
+                        # Click the reload button to get a new challenge
+                        reload_button = WebDriverWait(driver, 5).until(
+                            EC.element_to_be_clickable((By.ID, "recaptcha-reload-button"))
+                        )
+                        reload_button.click()
+                    except Exception as reload_err:
+                        print(f"Could not find or click reload button: {reload_err}")
+                    
                     driver.switch_to.default_content()
-                    break
+                    continue # Skip to the next iteration of the while loop
+
+                array = re.split(r'[,\s-]+', answer)
+                
+                driver.switch_to.frame(challenge_iframe)
+                
+                table = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "table[class*='rc-imageselect-table-']"))
+                )
+                
+                if table:
+                    all_images = table.find_elements(By.CSS_SELECTOR, "td")
+                    print(f"Found {len(all_images)} image tiles")
+                    
+                    for each_element in array:
+                        try:
+                            # Ensure element is not empty before converting to int
+                            if each_element:
+                                index = int(each_element.strip())
+                                if 0 <= index < len(all_images):
+                                    all_images[index].click()
+                                    print(f"Clicked tile {index}")
+                                    time.sleep(random.uniform(0.4, 0.8))
+                        except (ValueError, IndexError) as e:
+                            print(f"Error clicking tile '{each_element}': {e}")
+                    
+                verify_button = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "recaptcha-verify-button"))
+                )
+                verify_button.click()
+                
+                driver.switch_to.default_content()
+                time.sleep(7)
+                
+                try:
+                    driver.switch_to.frame(recaptcha_frame)
+                    if driver.find_elements(By.CSS_SELECTOR, ".recaptcha-checkbox-checked"):
+                        print("reCAPTCHA solved successfully!")
+                        driver.switch_to.default_content()
+                        break
+                    driver.switch_to.default_content()
+                except:
+                    pass
+                    
+                challenge_iframe = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "iframe[src*='recaptcha/api2/bframe']"))
+                )
                     
         except:
             print("No challenge required, reCAPTCHA completed by checkbox.")
