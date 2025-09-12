@@ -164,6 +164,10 @@ def handle_recaptcha(driver):
             while True:
                 try:
                     number_of_challenges += 1
+                    if number_of_challenges > 10:
+                        print("Reached maximum number of reCAPTCHA attempts (10). Aborting.")
+                        raise Exception("reCAPTCHA attempt limit exceeded.")
+                        
                     filename = f'recaptcha_challenge_{number_of_challenges}.png'
                     
                     # Add a small delay to ensure images are loaded
