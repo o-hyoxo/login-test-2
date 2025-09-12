@@ -1,30 +1,43 @@
-name: Solve reCAPTCHA
+name: Renew Server
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Runs at midnight UTC every day
 
 jobs:
-  solve:
+  renew:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
-    - name: Set up Chrome
-      uses: browser-actions/setup-chrome@v1
+        python-version: '3.9'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    - name: Run reCAPTCHA solver
-      run: |
-        python main.py recaptcha --url "https://www.google.com/recaptcha/api/fallback?k=6LdjOBMTAAAAAFmv8eSu7I8_qw5qaF0o6sGrqXbA"
-    - name: Upload screenshot
-      uses: actions/upload-artifact@v4
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run renewal script
+      run: python main.py renew
+
+    - name: Upload success screenshot
+      if: success()
+      uses: actions/upload-artifact@v3
       with:
-        name: recaptcha-screenshot
-        path: recaptcha_solved.png
+        name: renewal-screenshot
+        path: renewal_success.png
+        if-no-files-found: ignore
+
+    - name: Upload error screenshot
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: renewal-screenshot
+        path: renewal_error.png
+        if-no-files-found: ignore
